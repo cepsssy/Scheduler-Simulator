@@ -164,3 +164,59 @@ class SchedulerSimulator:
     def _idle(timeline, t, next_arrival):
         SchedulerSimulator._emit(timeline, IDLE, t, next_arrival)
         return next_arrival
+
+    # -------------------------------- output ------------------------------- #
+    def algs_name(self):
+        name = dict(ALGORITHMS)[self.algorithm]
+        return f"{name} (Q={self.quantum})" if self.algorithm == "rr" else name
+
+    def report(self, tc_label):
+        procs, timeline = self.simulate()
+        rows = []
+        for p in sorted(procs, key=lambda x: x.pid):
+            rows.append([
+                f"P{p.pid}", p.arrival, p.burst, p.priority,
+                p.finish, p.turnaround, p.waiting, p.response,
+            ])
+        n = len(procs)
+        avg = lambda f: sum(f(p) for p in procs) / n if n else 0.0
+        gantt = " ".join(
+            f"{s} [{('P%d' % lb) if lb != IDLE else IDLE}] {e}"
+            for s, e, lb in timeline
+        )
+        out = [
+            "=" * 78,
+            f"Test Case : {tc_label}",
+            f"Algoritma : {self.algs_name()}",
+            f"Gantt     : {gantt}" if gantt else "Gantt     : (tidak ada eksekusi)",
+            "",
+            _table(
+                ["PID", "Arrival", "Burst", "Priority",
+                 "Finish", "Turnaround", "Waiting", "Response"],
+                rows,
+            ),
+            "",
+            f"Average Turnaround Time : {avg(lambda p: p.turnaround):.2f}",
+            f"Average Waiting Time    : {avg(lambda p: p.waiting):.2f}",
+            f"Average Response Time   : {avg(lambda p: p.response):.2f}",
+            "=" * 78,
+        ]
+        return "\n".join(out)
+
+
+# --------------------------------------------------------------------------- #
+# Tabel teks (rata kanan untuk kolom numerik)
+# --------------------------------------------------------------------------- #
+def _table(headers, rows):
+    cols = list(zip(*([headers] + rows)))
+    widths = [max(len(str(c)) for c in col) for col in cols]
+
+    def numeric(col):
+        return all(str(c).lstrip("-").isdigit() for c in col)
+
+    aligns = [">" if numeric(col) else "<" for col in cols]
+    fmt = lambda row: "  ".join(
+        f"{str(c):{a}{w}}" for c, a, w in zip(row, aligns, widths)
+    )
+    sep = "  ".join("-" * w for w in widths)
+    return "\n".join([fmt(headers), sep] + [fmt(r) for r in rows])
