@@ -220,3 +220,138 @@ def _table(headers, rows):
     )
     sep = "  ".join("-" * w for w in widths)
     return "\n".join([fmt(headers), sep] + [fmt(r) for r in rows])
+
+
+# --------------------------------------------------------------------------- #
+# Test cases: (pid, arrival, burst, priority)
+# --------------------------------------------------------------------------- #
+TEST_CASES = [
+    {"id": "TC1", "name": "Convoy Effect (FCFS klasik)", "quantum": 2,
+     "processes": [(1, 0, 24, 1), (2, 0, 3, 1), (3, 0, 3, 1)]},
+
+    {"id": "TC2", "name": "SJF Ideal (arrival & burst bervariasi)", "quantum": 2,
+     "processes": [(1, 0, 8, 2), (2, 1, 4, 1), (3, 2, 9, 4),
+                   (4, 3, 5, 3), (5, 5, 2, 5)]},
+
+    {"id": "TC3", "name": "SRTF Preemption intens", "quantum": 2,
+     "processes": [(1, 0, 10, 3), (2, 1, 4, 2), (3, 2, 2, 1),
+                   (4, 3, 1, 4)]},
+
+    {"id": "TC4", "name": "Round Robin Q=2", "quantum": 2,
+     "processes": [(1, 0, 5, 1), (2, 0, 4, 1), (3, 0, 3, 1),
+                   (4, 0, 6, 1)]},
+
+    {"id": "TC5", "name": "Round Robin Q=4 (pembanding TC4)", "quantum": 4,
+     "processes": [(1, 0, 5, 1), (2, 0, 4, 1), (3, 0, 3, 1),
+                   (4, 0, 6, 1)]},
+
+    {"id": "TC6", "name": "Priority Non-Preemptive (high prio telat)", "quantum": 2,
+     "processes": [(1, 0, 10, 5), (2, 1, 4, 4), (3, 2, 2, 1),
+                   (4, 4, 3, 2)]},
+
+    {"id": "TC7", "name": "Priority Preemptive (preempt saat berjalan)", "quantum": 2,
+     "processes": [(1, 0, 10, 3), (2, 2, 4, 1), (3, 5, 3, 2)]},
+
+    {"id": "TC8", "name": "Mixed Arrival, Burst Identik (4)", "quantum": 2,
+     "processes": [(1, 0, 4, 1), (2, 1, 4, 2), (3, 2, 4, 3),
+                   (4, 3, 4, 4), (5, 4, 4, 5)]},
+
+    {"id": "TC9", "name": "Same Arrival, Burst Menurun", "quantum": 2,
+     "processes": [(1, 0, 10, 1), (2, 0, 8, 1), (3, 0, 6, 1),
+                   (4, 0, 4, 1), (5, 0, 2, 1)]},
+
+    {"id": "TC10", "name": "Interleaved Short & Long", "quantum": 2,
+     "processes": [(1, 0, 10, 2), (2, 1, 2, 1), (3, 2, 9, 3),
+                   (4, 3, 3, 4)]},
+
+    {"id": "TC11", "name": "Late High Priority (burst kecil, prio 1)", "quantum": 2,
+     "processes": [(1, 0, 10, 3), (2, 4, 1, 1), (3, 6, 2, 2)]},
+
+    {"id": "TC12", "name": "Stress Test (8 proses acak)", "quantum": 2,
+     "processes": [(1, 0, 7, 3), (2, 3, 2, 1), (3, 5, 9, 4), (4, 8, 1, 2),
+                   (5, 10, 6, 5), (6, 12, 3, 1), (7, 14, 5, 3), (8, 15, 4, 2)]},
+
+    {"id": "TC13", "name": "Zero Burst / Instant", "quantum": 2,
+     "processes": [(1, 0, 0, 1), (2, 0, 5, 1)]},
+
+    {"id": "TC14", "name": "Identical Everything (tie-breaker PID)", "quantum": 2,
+     "processes": [(1, 0, 4, 1), (2, 0, 4, 1), (3, 0, 4, 1)]},
+
+    {"id": "TC15", "name": "Large Gaps / Idle Time", "quantum": 2,
+     "processes": [(1, 0, 2, 1), (2, 10, 3, 1)]},
+]
+
+ALGORITHMS = [
+    ("fcfs", "FCFS"),
+    ("sjf", "SJF (Non-Preemptive)"),
+    ("srtf", "SRTF (Preemptive)"),
+    ("priority_np", "Priority (Non-Preemptive)"),
+    ("priority_p", "Priority (Preemptive)"),
+    ("rr", "Round Robin"),
+]
+
+
+# --------------------------------------------------------------------------- #
+# Runner
+# --------------------------------------------------------------------------- #
+def run_case(tc, alg_key, quantum=None):
+    q = tc.get("quantum", DEFAULT_QUANTUM) if quantum is None else quantum
+    sim = SchedulerSimulator(tc["processes"], alg_key, q)
+    print(sim.report(f'{tc["id"]} - {tc["name"]}'))
+    print()
+
+
+def run_all(alg_key=None):
+    for key, _ in (ALGORITHMS if alg_key is None else [(alg_key, "")]):
+        for tc in TEST_CASES:
+            run_case(tc, key)
+
+
+def ask(prompt, default=None):
+    raw = input(prompt).strip()
+    return default if raw == "" else raw
+
+
+def menu():
+    while True:
+        print("\n=== CPU Scheduler Simulator ===")
+        for i, (_, name) in enumerate(ALGORITHMS, 1):
+            print(f"  {i}) {name}")
+        print(f"  {len(ALGORITHMS) + 1}) Semua algoritma x semua test case")
+        print("  0) Keluar")
+        choice = ask("Pilih: ")
+        if choice == "0":
+            print("Selesai.")
+            return
+        if choice == str(len(ALGORITHMS) + 1):
+            run_all()
+            continue
+        if not choice.isdigit() or not 1 <= int(choice) <= len(ALGORITHMS):
+            print("Pilihan tidak valid.")
+            continue
+
+        key, name = ALGORITHMS[int(choice) - 1]
+        quantum = None
+        if key == "rr":
+            quantum = int(ask(f"Quantum (default {DEFAULT_QUANTUM}): ", DEFAULT_QUANTUM))
+
+        sub = ask(f"Test case untuk {name} [1-{len(TEST_CASES)}, 0=semua]: ", "0")
+        if sub == "0":
+            run_all(key)
+        elif sub.isdigit() and 1 <= int(sub) <= len(TEST_CASES):
+            run_case(TEST_CASES[int(sub) - 1], key, quantum)
+        else:
+            print("Pilihan tidak valid.")
+
+
+def main():
+    import sys
+
+    if "--all" in sys.argv:
+        run_all()
+    else:
+        menu()
+
+
+if __name__ == "__main__":
+    main()
